@@ -74,7 +74,7 @@ app.delete('/api/notes/:id', (req, res) => {
 
 // Fallback route for when a user tries to access a route that doesn't exist
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/index.html'));
+    res.sendFile(path.join(__dirname, 'source/index.html'));
 });
 
 app.listen(PORT, () => {
