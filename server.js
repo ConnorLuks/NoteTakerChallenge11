@@ -1,69 +1,90 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs');
+const uniqid = require('uniqid');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "develop/source/index.html")));
 
-app.use(express.static('source'));
+const dbPath = path.join(__dirname, 'db', 'db.json');
 
-// GET route to retrieve notes
 app.get('/api/notes', (req, res) => {
-    fs.readFile(path.join(__dirname, 'db/db.json'), 'utf8', (err, data) => {
+    fs.readFile(dbPath, 'utf8', (err, data) => {
         if (err) {
-            return res.status(500),json({ error: 'Failed to read notes data.' });
+            console.error(err);
+            res.status(500).send('Error reading notes');
+            return;
         }
         res.json(JSON.parse(data));
     });
 });
 
-// Route to save a new note
 app.post('/api/notes', (req, res) => {
-    fs.readFile(path.join(dirname, 'db/db.json'), 'utf8', (err, data) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to read notes data' });
-      }
-  
-      const notes = JSON.parse(data);
-      const newNote = { ...req.body, id: Date.now().toString() };
-      notes.push(newNote);
-  
-      fs.writeFile(path.join(dirname, 'db/db.json'), JSON.stringify(notes, null, 2), (err) => {
+    const newNote = {
+        id: uniqid(),
+        title: req.body.title,
+        text: req.body.text
+    };
+
+    fs.readFile(dbPath, 'utf8', (err, data) => {
         if (err) {
-          return res.status(500).json({ error: 'Failed to save note' });
+            console.error(err);
+            res.status(500).send('Error reading notes');
+            return;
         }
-        res.json(newNote);
-      });
+
+        const notes = JSON.parse(data);
+        notes.push(newNote);
+
+        fs.writeFile(dbPath, JSON.stringify(notes, null, 2), (err) => {
+            if (err) {
+                console.error(err);
+                res.status(500).send('Error saving note');
+                return;
+            }
+            res.json(newNote);
+        });
     });
-  });
-  
-  // Route to delete a note
-  app.delete('/api/notes/:id', (req, res) => {
-    fs.readFile(path.join(dirname, 'db/db.json'), 'utf8', (err, data) => {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to read notes data' });
-      }
-  
-      const notes = JSON.parse(data);
-      const filteredNotes = notes.filter(note => note.id !== req.params.id);
-  
-      fs.writeFile(path.join(dirname, 'db/db.json'), JSON.stringify(filteredNotes, null, 2), (err) => {
+});
+
+app.delete('/api/notes/:id', (req, res) => {
+    const noteId = req.params.id;
+
+    fs.readFile(dbPath, 'utf8', (err, data) => {
         if (err) {
-          return res.status(500).json({ error: 'Failed to delete note' });
+            console.error(err);
+            res.status(500).send('Error reading notes');
+            return;
         }
-        res.json({ id: req.params.id });
-      });
+
+        let notes = JSON.parse(data);
+        notes = notes.filter(note => note.id !== noteId);
+
+        fs.writeFile(dbPath, JSON.stringify(notes, null, 2), (err) => {
+            if (err) {
+                console.error(err);
+                res.status(500).send('Error deleting note');
+                return;
+            }
+            res.json({ id: noteId });
+        });
     });
-  });
-  
-  // Catch-all route to serve the index.html
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'source/index.html'));
-  });
-  
-  app.listen(PORT, () => {
-    console.log(`Server is listening on port ${PORT}`);
-  });
+});
+
+app.get('/notes', (req, res) => {
+    res.sendFile(path.join(__dirname, "develop/source/notes.html"));
+});
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, "develop/source/index.html"));
+});
+
+app.listen(PORT, () => {
+    console.log(`API server now on port ${PORT}!`);
+});
+
+
